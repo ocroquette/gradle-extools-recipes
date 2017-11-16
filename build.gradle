@@ -1,0 +1,256 @@
+import java.nio.file.Files
+import java.nio.file.Paths
+
+buildscript {
+    dependencies {
+        // To uncompress XZ and 7z files:
+        classpath group: 'org.apache.commons', name: 'commons-compress', version: '1.15'
+        classpath group: 'org.tukaani', name: 'xz', version: '1.6'
+    }
+}
+
+plugins {
+    id "de.undercouch.download" version "3.3.0"
+}
+
+
+dependencies {
+}
+
+def downloadDir = new File(buildDir, "extools/downloads")
+def workDir = new File(buildDir, "extools/work")
+def repoDir = new File(buildDir, "extools/repo")
+
+task create_dirs {
+    doLast {
+        downloadDir.mkdirs()
+        workDir.deleteDir()
+        workDir.mkdirs()
+        repoDir.mkdirs()
+    }
+}
+
+task all {
+    dependsOn "cmake_win",
+            "cmake_mac",
+            "mingw64_gcc",
+            "ninja_win"
+}
+
+task cmake_win {
+    dependsOn "create_dirs"
+
+    doLast {
+
+        def distBasename = "cmake-3.10.0-rc5-win32-x86"
+        def distFilename = "${distBasename}.zip"
+        def extFilename = "${distBasename}.ext"
+        def localFile = new File(downloadDir, distFilename)
+
+        download {
+            src "https://cmake.org/files/v3.10/${distFilename}"
+            dest localFile
+            overwrite false
+        }
+
+        ant.unzip(src: localFile, dest: workDir)
+
+        def unzippedDir = new File(workDir, distBasename)
+        new File(unzippedDir, "extools.conf").text = """appendPath;PATH;bin
+"""
+
+        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, extFilename))
+    }
+}
+
+task cmake_mac {
+    dependsOn "create_dirs"
+
+    doLast {
+        def distBasename = "cmake-3.10.0-rc5-Darwin-x86_64"
+        def distFilename = "${distBasename}.tar.gz"
+        def extFilename = "${distBasename}.ext"
+        def localFile = new File(downloadDir, distFilename)
+
+        download {
+            src "https://cmake.org/files/v3.10/${distFilename}"
+            dest localFile
+            overwrite false
+        }
+
+        ant.untar(src: localFile, dest: workDir, compression: "gzip")
+
+        def unzippedDir = new File(workDir, distBasename)
+        new File(unzippedDir, "extools.conf").text = """appendPath;PATH;CMake.app/Contents/bin/
+"""
+
+        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, extFilename))
+    }
+}
+
+task ninja_win {
+    dependsOn "create_dirs"
+
+    doLast {
+        def version = "v1.8.2"
+        def basename = "ninja-win-${version}"
+        def localFile = new File(downloadDir, "${basename}.zip")
+
+        download {
+            src "https://github.com/ninja-build/ninja/releases/download/$version/ninja-win.zip"
+            dest localFile
+            overwrite false
+        }
+
+        def unzipDir = new File(workDir, basename)
+        ant.unzip(src: localFile, dest: unzipDir)
+
+        new File(unzipDir, "extools.conf").text = """
+appendPath;PATH;.
+"""
+
+        ant.zip(basedir: unzipDir, destfile: new File(repoDir, "${basename}.ext"))
+    }
+}
+
+
+task qtcreator_win {
+    dependsOn "create_dirs"
+
+    doLast {
+        def version = "4.4.1"
+        def basename = "qtcreator-win-${version}"
+        def localFile = new File(downloadDir, "${basename}.zip")
+
+        download {
+            src "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_qtcreator/qt.tools.qtcreator/$version-0qtcreator.7z"
+            dest localFile
+            overwrite false
+        }
+
+        def unzipDir = new File(workDir, basename)
+		extract7z(localFile, unzipDir)
+
+        new File(unzipDir, "extools.conf").text = """
+appendPath;PATH;Tools/QtCreator/bin
+"""
+
+        ant.zip(basedir: unzipDir, destfile: new File(repoDir, "${basename}.ext"))
+    }
+}
+
+def extractXz(def inputPath, def outputPath) {
+    InputStream fin = Files.newInputStream(inputPath)
+    BufferedInputStream bin = new BufferedInputStream(fin)
+    OutputStream out = Files.newOutputStream(outputPath)
+    int buffersize = 16 * 1024 * 1024
+    org.apache.commons.compress.compressors.xz.XZCompressorInputStream xzIn = new org.apache.commons.compress.compressors.xz.XZCompressorInputStream(bin)
+    final byte[] buffer = new byte[buffersize]
+    int n = 0
+    while (-1 != (n = xzIn.read(buffer))) {
+        out.write(buffer, 0, n)
+    }
+    out.close()
+    xzIn.close()
+}
+
+def extract7z(def inputFile, def outputDir) {
+	org.apache.commons.compress.archivers.sevenz.SevenZFile sevenZFile = new org.apache.commons.compress.archivers.sevenz.SevenZFile(inputFile);
+	org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry entry = sevenZFile.getNextEntry();
+	while(entry!=null){
+		if (entry.isDirectory()) {
+			new File(outputDir, entry.getName()).mkdirs()
+		}
+		else {
+			FileOutputStream out = new FileOutputStream(new File(outputDir, entry.getName()));
+			byte[] content = new byte[(int) entry.getSize()];
+			sevenZFile.read(content, 0, content.length);
+			out.write(content);
+			out.close();
+		}
+		entry = sevenZFile.getNextEntry();
+	}
+	sevenZFile.close();
+}
+
+task mingw64_gcc {
+    dependsOn "create_dirs"
+
+    def baseUrl = "http://repo.msys2.org/mingw/x86_64/"
+
+
+    doLast {
+        def extoolName = "mingw64_gcc-2017-11-15"
+        // List of required packages can be generated from Msys2 with the following command line:
+        // echo mingw-w64-x86_64-gcc | xargs -n 1 pactree -u | xargs -r pacman -Sp | sort | uniq
+        def urls = """
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-binutils-2.29.1-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-bzip2-1.0.6-6-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-crt-git-5.0.0.4966.1eee2140-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-gcc-7.2.0-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-gcc-libs-7.2.0-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-gmp-6.1.2-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-headers-git-5.0.0.4966.1eee2140-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-isl-0.18-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-libiconv-1.15-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-libwinpthread-git-5.0.0.4850.d1662dc7-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-mpc-1.0.3-2-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-mpfr-3.1.6-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-windows-default-manifest-6.4-3-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-winpthreads-git-5.0.0.4850.d1662dc7-1-any.pkg.tar.xz
+http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-zlib-1.2.11-1-any.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/expat-2.2.4-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/gcc-libs-6.3.0-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/gdb-7.11.1-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/gdbm-1.11-3-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/icu-59.1-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libbz2-1.0.6-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libexpat-2.2.4-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libffi-3.2.1-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libgdbm-1.11-3-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libiconv-1.14-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libopenssl-1.0.2.l-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libreadline-7.0.003-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/libsqlite-3.19.3.0-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/msys2-runtime-2.9.0-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/ncurses-6.0.20170708-2-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/python2-2.7.13-1-x86_64.pkg.tar.xz
+http://repo.msys2.org/msys/x86_64/zlib-1.2.11-1-x86_64.pkg.tar.xz
+"""
+        def extractDir = new File(workDir, extoolName)
+        extractDir.deleteDir()
+        extractDir.mkdirs()
+
+        urls.eachLine { url ->
+            if ( url.matches("\\s*"))
+                return
+            def distFilename = url.split("/").last()
+            def distBasename = distFilename.replace(".tar.xz", "")
+            def localFile = new File(downloadDir, distFilename)
+            def tarFile = new File(downloadDir, "${distBasename}.tar")
+            logger.lifecycle("Downloading and extracting " + distBasename)
+            logger.debug("Downloading $distBasename from $url")
+            download {
+                src url
+                dest localFile
+                overwrite false
+            }
+            logger.debug("Uncompressing $localFile to $tarFile")
+            extractXz(localFile.toPath(), tarFile.toPath())
+            logger.debug("Untaring $tarFile to $extractDir")
+            ant.untar(src: tarFile, dest: extractDir)
+        }
+        [".BUILDINFO", ".MTREE", ".PKGINFO", ".INSTALL"].each {
+            new File(extractDir, it).delete()
+        }
+
+        new File(extractDir, "extools.conf").text = """
+appendPath;PATH;mingw64/bin
+"""
+
+        logger.lifecycle("Packing " + extoolName)
+        def extFile = new File(repoDir, "${extoolName}.ext")
+        logger.debug("Zipping $extractDir to ${extoolName}.ext")
+        ant.zip(basedir: extractDir, destfile: extFile)
+    }
+}
