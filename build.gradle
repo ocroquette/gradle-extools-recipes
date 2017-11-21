@@ -56,7 +56,7 @@ task cmake_win {
         ant.unzip(src: localFile, dest: workDir)
 
         def unzippedDir = new File(workDir, distBasename)
-        new File(unzippedDir, "extools.conf").text = """appendPath;PATH;bin
+        new File(unzippedDir, "extools.conf").text = """append;env;path;PATH;bin
 """
 
         ant.zip(basedir: unzippedDir, destfile: new File(repoDir, extFilename))
@@ -81,7 +81,7 @@ task cmake_mac {
         ant.untar(src: localFile, dest: workDir, compression: "gzip")
 
         def unzippedDir = new File(workDir, distBasename)
-        new File(unzippedDir, "extools.conf").text = """appendPath;PATH;CMake.app/Contents/bin/
+        new File(unzippedDir, "extools.conf").text = """append;env;path;PATH;CMake.app/Contents/bin/
 """
 
         ant.zip(basedir: unzippedDir, destfile: new File(repoDir, extFilename))
@@ -106,7 +106,7 @@ task ninja_win {
         ant.unzip(src: localFile, dest: unzipDir)
 
         new File(unzipDir, "extools.conf").text = """
-appendPath;PATH;.
+append;env;path;PATH;.
 """
 
         ant.zip(basedir: unzipDir, destfile: new File(repoDir, "${basename}.ext"))
@@ -132,7 +132,7 @@ task qtcreator_win {
 		extract7z(localFile, unzipDir)
 
         new File(unzipDir, "extools.conf").text = """
-appendPath;PATH;Tools/QtCreator/bin
+append;env;path;PATH;Tools/QtCreator/bin
 """
 
         ant.zip(basedir: unzipDir, destfile: new File(repoDir, "${basename}.ext"))
@@ -245,7 +245,7 @@ http://repo.msys2.org/msys/x86_64/zlib-1.2.11-1-x86_64.pkg.tar.xz
         }
 
         new File(extractDir, "extools.conf").text = """
-appendPath;PATH;mingw64/bin
+append;env;path;PATH;mingw64/bin
 """
 
         logger.lifecycle("Packing " + extoolName)
