@@ -1,0 +1,14 @@
+plugins {
+    id 'groovy'
+}
+
+repositories {
+    maven {
+        url "https://plugins.gradle.org/m2/"
+    }
+}
+dependencies {
+    // To uncompress XZ and 7z files:
+    compile 'org.apache.commons:commons-compress:1.15'
+    compile 'org.tukaani:xz:1.6'
+}
