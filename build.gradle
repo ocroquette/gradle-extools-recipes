@@ -7,7 +7,7 @@ buildscript {
 }
 
 plugins {
-    id "com.github.ocroquette.extools" version "1.9"
+    id "com.github.ocroquette.extools" version "1.18"
     id "de.undercouch.download" version "3.3.0"
 }
 
@@ -47,7 +47,7 @@ task cmake_win {
         def fullVersion = "${majorVersion}.0"
         def distBasename = "cmake-${fullVersion}-win32-x86"
         def distFilename = "${distBasename}.zip"
-        def extFilename = "cmake-${fullVersion}-win.ext"
+        def extFilename = "cmake-${fullVersion}-win.zip"
         def localFile = new File(downloadDir, distFilename)
 
         download {
@@ -74,7 +74,7 @@ task cmake_mac {
         def fullVersion = "${majorVersion}.0"
         def distBasename = "cmake-${fullVersion}-Darwin-x86_64"
         def distFilename = "${distBasename}.tar.gz"
-        def extFilename = "cmake-${fullVersion}-mac.ext"
+        def extFilename = "cmake-${fullVersion}-mac.zip"
         def localFile = new File(downloadDir, distFilename)
 
         download {
@@ -99,7 +99,7 @@ task jom_win {
         def version = "1.1.2"
         def distBasename = "jom_" + version.replaceAll("\\.", "_")
         def distFilename = "${distBasename}.zip"
-        def extFilename = "jom-${version}-win.ext"
+        def extFilename = "jom-${version}-win.zip"
         def localFile = new File(downloadDir, distFilename)
 
         download {
@@ -136,7 +136,7 @@ task ninja_win {
 
         ExtoolConfWriter.writeExtoolConf(unzippedDir, ["prepend;env;path;PATH;."])
 
-        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${basename}.ext"))
+        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${basename}.zip"))
     }
 }
 
@@ -160,7 +160,7 @@ task qtcreator_win {
 
         ExtoolConfWriter.writeExtoolConf(unzippedDir, ["prepend;env;path;PATH;Tools/QtCreator/bin"])
 
-        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${extoolName}.ext"))
+        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${extoolName}.zip"))
     }
 }
 
@@ -196,7 +196,7 @@ task mingw64_gcc {
                 "prepend;env;path;PATH;mingw64/opt/bin",
         ])
 
-        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${extoolName}.ext"))
+        ant.zip(basedir: unzippedDir, destfile: new File(repoDir, "${extoolName}.zip"))
     }
 }
 
@@ -325,7 +325,7 @@ task qtsdk_win {
 
         def md5 = Checksum.md5(configureString).subSequence(1, 7)
         def extoolName = "qt-sdk-${version}-win-${md5}"
-        def extFilename = "${extoolName}.ext"
+        def extFilename = "${extoolName}.zip"
 
         logger.lifecycle("Zipping")
         ant.zip(basedir: qtInstallDir, destfile: new File(repoDir, extFilename))
@@ -341,8 +341,8 @@ task cmd {
     }
 }
 
-//task msys_gcc {
 //    dependsOn "create_dirs"
+//task msys_gcc {
 //
 //    doLast {
 //        def extoolName = "msys-2017-11-15"
@@ -412,8 +412,8 @@ task cmd {
 //        ])
 //
 //        logger.lifecycle("Packing " + extoolName)
-//        def extFile = new File(repoDir, "${extoolName}.ext")
-//        logger.debug("Zipping $extractDir to ${extoolName}.ext")
+//        def extFile = new File(repoDir, "${extoolName}.zip")
+//        logger.debug("Zipping $extractDir to ${extoolName}.zip")
 //        ant.zip(basedir: extractDir, destfile: extFile)
 //
 //    }
